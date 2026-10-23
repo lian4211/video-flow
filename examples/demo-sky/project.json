@@ -1,0 +1,29 @@
+{
+  "title": "天空为什么是蓝的",
+  "subtitle": "",
+  "language": "zh",
+  "format": "9:16",
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "style": "paper",
+  "voice": {
+    "engine": "edge",
+    "name": "zh-CN-XiaoxiaoNeural",
+    "rate": "+3%",
+    "pitch": "+0Hz"
+  },
+  "music": "ambient",
+  "target_lufs": -14.2,
+  "brand": {
+    "enabled": false,
+    "name": "",
+    "footer": ""
+  },
+  "brief": {
+    "audience": "",
+    "goals": [],
+    "misconception": "",
+    "facts_source": []
+  }
+}

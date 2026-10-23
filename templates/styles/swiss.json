@@ -1,0 +1,23 @@
+{
+  "name": "swiss",
+  "label": "瑞士网格",
+  "bg": ["#f4f3ef", "#ffffff"],
+  "colors": {
+    "accent": "#e03c31",
+    "accent2": "#111111",
+    "accent3": "#8a8a86",
+    "accent4": "#2f5d8a",
+    "text": "#111111",
+    "muted": "#6f6f6b",
+    "panel": "#ffffff",
+    "line": "#111111"
+  },
+  "font": {
+    "title": "\"Helvetica Neue\",\"Arial\",\"Inter\",sans-serif",
+    "body": "\"Helvetica Neue\",\"Arial\",\"Microsoft YaHei\",sans-serif",
+    "mono": "\"Consolas\",\"Menlo\",monospace"
+  },
+  "background": "swiss",
+  "panel": { "radius": 0, "fillAlpha": 0.0, "strokeAlpha": 0.9, "glow": 0 },
+  "motion": { "speed": 1.0 }
+}

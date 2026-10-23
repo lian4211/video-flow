@@ -1,0 +1,23 @@
+{
+  "name": "blueprint",
+  "label": "蓝图",
+  "bg": ["#06182e", "#0a2542"],
+  "colors": {
+    "accent": "#66d9ff",
+    "accent2": "#ffd166",
+    "accent3": "#ff6b6b",
+    "accent4": "#e8f2ff",
+    "text": "#e8f2ff",
+    "muted": "#9db6d0",
+    "panel": "#08203a",
+    "line": "#66d9ff"
+  },
+  "font": {
+    "title": "\"Consolas\",\"Microsoft YaHei\",sans-serif",
+    "body": "\"Microsoft YaHei\",\"PingFang SC\",\"Noto Sans SC\",sans-serif",
+    "mono": "\"Consolas\",monospace"
+  },
+  "background": "grid",
+  "panel": { "radius": 0, "fillAlpha": 0.35, "strokeAlpha": 0.55, "glow": 0 },
+  "motion": { "speed": 0.95 }
+}

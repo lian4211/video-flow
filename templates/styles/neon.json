@@ -1,0 +1,23 @@
+{
+  "name": "neon",
+  "label": "霓虹",
+  "bg": ["#0a0414", "#150a24"],
+  "colors": {
+    "accent": "#ff3df2",
+    "accent2": "#3df2ff",
+    "accent3": "#d4ff3d",
+    "accent4": "#ffb347",
+    "text": "#f4ecff",
+    "muted": "#a08cb8",
+    "panel": "#150a24",
+    "line": "#ff3df2"
+  },
+  "font": {
+    "title": "\"Microsoft YaHei\",\"PingFang SC\",sans-serif",
+    "body": "\"Microsoft YaHei\",\"PingFang SC\",sans-serif",
+    "mono": "\"Consolas\",monospace"
+  },
+  "background": "nebula",
+  "panel": { "radius": 20, "fillAlpha": 0.55, "strokeAlpha": 0.6, "glow": 22 },
+  "motion": { "speed": 1.15 }
+}

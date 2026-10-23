@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+**/frames/
+**/audio/_mix*.wav
+**/audio/mix.wav
+**/build/timeline.js
+**/build/content.js
+**/timeline.json
+**/script.timed.json
+**/qa/frames/
+!examples/demo-sky/build/timeline.js
+!examples/demo-sky/build/content.js
+!examples/demo-sky/timeline.json
+!examples/demo-sky/script.timed.json

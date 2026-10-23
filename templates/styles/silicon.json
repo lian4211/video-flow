@@ -1,0 +1,23 @@
+{
+  "name": "silicon",
+  "label": "硅片剖面",
+  "bg": ["#04060c", "#081120"],
+  "colors": {
+    "accent": "#3fe7ff",
+    "accent2": "#ffb454",
+    "accent3": "#ff4f8b",
+    "accent4": "#5df2a6",
+    "text": "#eaf4ff",
+    "muted": "#8fa6c4",
+    "panel": "#0a1526",
+    "line": "#3fe7ff"
+  },
+  "font": {
+    "title": "\"Microsoft YaHei\",\"PingFang SC\",\"Noto Sans SC\",sans-serif",
+    "body": "\"Microsoft YaHei\",\"PingFang SC\",\"Noto Sans SC\",sans-serif",
+    "mono": "\"Consolas\",\"Cascadia Mono\",monospace"
+  },
+  "background": "circuit",
+  "panel": { "radius": 18, "fillAlpha": 0.62, "strokeAlpha": 0.42, "glow": 12 },
+  "motion": { "speed": 1.0 }
+}

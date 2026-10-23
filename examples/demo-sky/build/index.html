@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>video-flow</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<script>
+window.__err = null;
+window.addEventListener("error", function (e) {
+  window.__err = (e.message || "error") + " @ " + (e.filename || "") + ":" + (e.lineno || 0);
+});
+window.addEventListener("unhandledrejection", function (e) {
+  window.__err = "promise: " + String(e.reason);
+});
+</script>
+<canvas id="c"></canvas>
+
+<script src="theme.js"></script>
+<script src="format.js"></script>
+<script src="brand.js"></script>
+<script src="content.js"></script>
+<script src="timeline.js"></script>
+<script src="lib.js"></script>
+<script src="scenes.js"></script>
+<script src="custom.js"></script>
+
+<script>
+"use strict";
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+canvas.width = window.FORMAT.w;
+canvas.height = window.FORMAT.h;
+
+function drawActive(t) {
+  const list = window.SCENES || [];
+  for (const sc of list) {
+    if (t >= sc.start && t < sc.start + sc.dur) {
+      const u = t - sc.start;
+      const a = window.LIB.sceneAlpha(t, sc);
+      if (a <= 0.001) continue;
+      const content = (window.CONTENT.scenes || []).find(s => s.id === sc.id) || { id: sc.id, type: sc.type };
+      const fn = (window.CUSTOM && window.CUSTOM[sc.id]) ||
+        (window.SCENES_IMPL && window.SCENES_IMPL[content.type]) ||
+        window.SCENES_IMPL.concept;
+      ctx.save();
+      ctx.globalAlpha = a;
+      try { fn(u, sc.dur, content, ctx); } catch (e) { console.error("scene error", sc.id, e); }
+      ctx.restore();
+    }
+  }
+}
+
+function render(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  window.LIB.drawBackground(t);
+  drawActive(t);
+  window.LIB.drawCut(t);
+  window.LIB.drawHUD(t);
+}
+
+window.render = render;
+render(0);
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => { render(0); window.READY = true; });
+} else {
+  window.READY = true;
+}
+
+</script>
+</body>
+</html>
