@@ -109,6 +109,7 @@ video-flow/
 │   ├── build/                # index.html + lib.js + scenes.js + custom.js
 │   ├── styles/               # silicon / paper / blueprint / neon / swiss
 │   └── script.example.json   # 示例分镜
+├── models/                   # 可选：VoxCPM2 权重（.gitignore，不随仓库分发）
 └── examples/demo-sky/        # 完整示例（含成片）
 ```
 

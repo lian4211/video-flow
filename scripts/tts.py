@@ -246,7 +246,7 @@ def main():
         if not ref_text:
             txt = root / "audio" / "voice_ref.txt"
             if txt.exists():
-                ref_text = txt.read_text(encoding="utf-8").strip()
+                ref_text = txt.read_text(encoding="utf-8-sig").strip()
         if not ref_text:
             print("warn: no --ref-text; cloning will use reference audio only (lower similarity)", flush=True)
 
