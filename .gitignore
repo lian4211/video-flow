@@ -1,6 +1,10 @@
 __pycache__/
 *.pyc
 **/frames/
+**/models/
+.venv*/
+**/audio/voice_ref.wav
+**/audio/voice_ref.txt
 **/audio/_mix*.wav
 **/audio/mix.wav
 **/build/timeline.js

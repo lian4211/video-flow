@@ -49,6 +49,9 @@ python scripts/init_project.py --dir my-video --title "我的讲解视频" --for
 python scripts/tts.py --project my-video
 python scripts/timeline.py --project my-video
 
+# 4b) 要 48 kHz / 商业配音感：本地 VoxCPM2（需先装 CUDA 版 PyTorch 与 4.7 GB 权重）
+#     python scripts/tts.py --project my-video --engine voxcpm --model-dir models/VoxCPM2 --atempo 0.95
+
 # 5) 逐帧渲染（自动启动 Chrome，或 --cdp 连已有实例）
 python scripts/render.py --project my-video --launch-chrome
 
@@ -87,12 +90,13 @@ video-flow/
 │   ├── styles.md             # 5 套视觉风格
 │   ├── formats.md            # 16:9 / 9:16 / 1:1 / 4:5 与安全区
 │   ├── audio.md              # TTS/真人录音、配乐、ducking、响度
+│   ├── local-tts.md          # VoxCPM2 本地 48 kHz：安装/克隆/中文名词/排错
 │   └── qa.md                 # 验收清单与自动检查
 ├── scripts/
 │   ├── check_env.py          # 环境检查
 │   ├── ingest.py             # 源材料 → source.md
 │   ├── init_project.py       # 项目脚手架
-│   ├── tts.py                # edge / sapi / 真人录音
+│   ├── tts.py                # edge / sapi / 真人录音 / VoxCPM2 本地
 │   ├── timeline.py           # 分镜 + 旁白 → timeline.js/json
 │   ├── render.py             # CDP 逐帧渲染（可续渲/静帧/运动模糊）
 │   ├── audio.py              # BGM/SFX/混音/ducking/母带
@@ -127,6 +131,7 @@ video-flow/
 - FFmpeg / ffprobe
 - Chrome / Chromium / Edge
 - （可选）`edge-tts`，用于中文神经语音；无网络可用 `--engine sapi` 或真人录音
+- （可选）**VoxCPM2 本地 48 kHz**：CUDA 版 PyTorch + `voxcpm` + 4.7 GB 权重，8 GB 显存；安装见 `references/local-tts.md`
 
 已在 Windows 11 + Chrome 155 + Python 3.12 + FFmpeg 8.1 上跑通。
 > Chrome 在受限 sandbox 中可能因 IPC/管道被禁止而无法启动；此时在允许的环境运行，或用 `--cdp` 连接一个已启动的 Chrome。
@@ -138,6 +143,7 @@ video-flow/
 - **新风格**：复制 `templates/styles/*.json` 改色板/字体/背景；`lib.js` 的 `drawBackground` 增加背景类型。
 - **新镜头**：在 `templates/build/scenes.js` 注册 `window.SCENES_IMPL[type]`，或在 `build/custom.js` 按场景 id 写专业图。
 - **真人配音**：录音按 `<scene-id>.wav` 放 `audio/vo_human/`，`tts.py --engine from-dir` 只做重采样/轻处理。
+- **本地 48 kHz 配音**：`tts.py --engine voxcpm` + 10–30 s 参考音色克隆；安装/调参/排错见 `references/local-tts.md`。
 - **多语言**：`script.<lang>.json` + 对应声线；时间轴自动重算。
 - **多画幅**：改 `project.format` 重新 init/render；布局由 `layout()` 适配。
 
@@ -147,4 +153,5 @@ video-flow/
 
 - 代码/模板：MIT（可商用、可修改）。
 - 示例中的语音为 Edge TTS 生成；配乐为 numpy 程序化合成，无第三方版权素材。
+- VoxCPM2 本地引擎为可选依赖：代码/权重 Apache-2.0；参考音色需自行取得授权，不要克隆未授权声音。
 - 使用他人 PDF/PPT/图片/音乐时，请自行确认授权。

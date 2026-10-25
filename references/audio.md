@@ -5,10 +5,26 @@
 | 来源 | 何时用 | 质量 | 命令 |
 |---|---|---|---|
 | Edge 神经语音 | 默认，有网络 | 24 kHz / 48 kbps，自然度好 | `tts.py --engine edge --voice zh-CN-XiaoxiaoNeural` |
+| **VoxCPM2 本地** | 要 48 kHz、要“抖音级”/商业配音感 | **48 kHz，可克隆音色/情绪，Apache-2.0** | `tts.py --engine voxcpm --model-dir models/VoxCPM2 --ref-audio audio/voice_ref.wav` |
 | 系统离线语音 | 无网络/必须离线 | 一般，偏机械 | `tts.py --engine sapi`（Windows） |
 | 真人录音 | 要求“像真人”/品牌片 | 最好 | 把 `<id>.wav` 放 `audio/vo_human/`，`tts.py --from-dir` |
 
-**必须承认的边界**：Edge 免费接口的源是 24 kHz；要 48 kHz 录音棚级，只有真人录音或付费 API（Azure/ElevenLabs）两条路。不要用“升采样 + 重低音”假装高音质。
+**边界**：Edge 免费接口的源是 24 kHz；要 48 kHz 录音棚级，优先用 **VoxCPM2 本地 48 kHz**（Apache-2.0，8 GB 显存可跑），其次才是真人录音或付费 API。不要用“升采样 + 重低音”假装高音质。
+
+> 本地 48 kHz 的完整安装、参考音色、中文技术名词改写、OOM/下载/音色问题，见 [`local-tts.md`](local-tts.md)。
+
+### 1.1 本地 VoxCPM2 的最小用法
+
+```bash
+# 1) 参考音色：10–30 s 干净人声；transcript 放 audio/voice_ref.txt
+# 2) project.json 的 voice.engine 设为 voxcpm
+python scripts/tts.py --project . --engine voxcpm --model-dir models/VoxCPM2 --atempo 0.95
+```
+
+- 全片固定同一 `ref_audio`，避免段间音色漂移；
+- 口播把 `ALU/CPU/CF/OF` 改成中文全称，屏幕保留缩写；
+- 数字写成中文读法（74181 → 七四一八一）；
+- 生成后先听 1 段，再批量。
 
 ## 2. TTS 参数
 
@@ -30,6 +46,19 @@
 ```
 
 真人录音额外：降噪（`afftdn`）、去齿音（`deesser`）、静音裁剪（`silenceremove`）。
+
+**VoxCPM2 本地音源**用更轻的链（`tts.py --engine voxcpm` 内置）：
+
+```text
+48 kHz 单声道
+→ atempo 0.95（可选，不改音高）
+→ highpass 60 Hz
+→ EQ: 180 Hz +0.8 dB, 3.2 kHz +0.6 dB
+→ 轻压缩: -20 dB, ratio 1.4, 8 ms / 150 ms
+→ 峰值归一化
+```
+
+本地模型本身已经干净，不要再叠重低音/空间插件；需要时只加极短 room。
 
 ## 4. 配乐
 

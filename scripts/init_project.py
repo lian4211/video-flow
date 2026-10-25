@@ -19,6 +19,8 @@ def main():
     ap.add_argument("--format", default="16:9", choices=list(FORMATS))
     ap.add_argument("--style", default="silicon")
     ap.add_argument("--voice", default="zh-CN-XiaoxiaoNeural")
+    ap.add_argument("--engine", default="edge", choices=["edge", "sapi", "voxcpm"])
+    ap.add_argument("--model-dir", default="models/VoxCPM2", help="VoxCPM2 dir when --engine voxcpm")
     ap.add_argument("--music", default="ambient", choices=["ambient", "tech", "paper", "uplift", "none"])
     ap.add_argument("--language", default="zh")
     ap.add_argument("--script", default=None, help="optional script.json to copy")
@@ -66,6 +68,16 @@ def main():
         shutil.copy2(TPL / "script.example.json", root / "script.json")
 
     w, h = FORMATS[args.format]
+    voice = {"engine": args.engine, "name": args.voice, "rate": "+3%", "pitch": "+0Hz"}
+    if args.engine == "voxcpm":
+        voice.update({
+            "model_dir": args.model_dir,
+            "ref_audio": "audio/voice_ref.wav",
+            "ref_text": "",
+            "control": "",
+            "atempo": 0.95,
+            "device": "cuda",
+        })
     project = {
         "title": args.title,
         "subtitle": "",
@@ -75,7 +87,7 @@ def main():
         "height": h,
         "fps": 30,
         "style": args.style,
-        "voice": {"engine": "edge", "name": args.voice, "rate": "+3%", "pitch": "+0Hz"},
+        "voice": voice,
         "music": args.music,
         "target_lufs": -14.2,
         "brand": {"enabled": False, "name": "", "footer": ""},

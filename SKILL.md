@@ -85,6 +85,7 @@ python scripts/check_env.py
 ```
 必须：Python 3.10+、FFmpeg/ffprobe、一个 Chromium 内核浏览器、`numpy/scipy`。
 建议：`edge-tts`（在线神经语音）、`pypdf`、`python-pptx`、`python-docx`、`Pillow`。
+要做 48 kHz / 商业配音感：CUDA 版 PyTorch + `voxcpm` + VoxCPM2 权重（可选，见 `references/local-tts.md`）。
 缺什么按输出的提示装；装不了就降级（无旁白 / 系统语音 / 手写音频）。
 
 ### 第 1 步：读源材料，提炼“教学结构”
@@ -126,11 +127,20 @@ python scripts/check_env.py
 
 ### 第 4 步：生成旁白与时间轴
 ```bash
-# 可选：没有配音就跳过，直接给每个 scene 写 duration
+# 默认：Edge 神经语音（24 kHz 源，快速草稿）
 python scripts/tts.py --project . --voice zh-CN-XiaoxiaoNeural --rate +3%
+
+# 要 48 kHz / “抖音级”质感：VoxCPM2 本地 + 参考音色克隆
+python scripts/tts.py --project . --engine voxcpm \
+  --model-dir models/VoxCPM2 \
+  --ref-audio audio/voice_ref.wav \
+  --atempo 0.95
+
 python scripts/timeline.py --project .
 ```
-- `tts.py` 输出 `audio/vo/<id>.wav`（48 kHz），自动做轻 EQ/压缩；支持 `--from-dir` 用真人录音。
+- `tts.py` 输出 `audio/vo/<id>.wav`（48 kHz），自动做轻 EQ/压缩；支持 `--from-dir` 用真人录音、`--engine voxcpm` 用本地 48 kHz 模型。
+- VoxCPM2 需要单独装 CUDA 版 PyTorch 与 4.7 GB 权重；完整步骤、参考音色、OOM 处理见 `references/local-tts.md`。
+- **专有名词口播规则**：屏幕保留 `ALU/CF/OF` 缩写，旁白写“算术逻辑单元/进位标志/溢出标志”；不要写 `A L U`（字母间会有停顿）；`74181` 写成“七四一八一”。
 - `timeline.py` 用实测旁白时长生成 `build/timeline.js` 与 `timeline.json`：
   `scene.duration = head + voDuration + tail`，没有旁白的镜头用显式 `duration`。
 - 之后**只改 script.json 再重跑这两步**，不要手改 timeline。
@@ -235,6 +245,7 @@ QA 必须全部通过（见 `references/qa.md`）：
 - **新风格**：复制 `templates/styles/*.json`，改色板/字体/背景类型；在 `styles.md` 补一格。
 - **新镜头**：`build/scenes.js` 注册；或 `build/custom.js` 写专业图。
 - **真人配音**：把录音按 `<scene-id>.wav` 放进 `audio/vo_human/`，`tts.py --from-dir` 只做重采样/轻处理。
+- **本地 48 kHz TTS**：`tts.py --engine voxcpm` + 参考音色克隆；安装/调参/排错见 `references/local-tts.md`。
 - **多语言**：一个 `script.<lang>.json` + 对应 TTS 声线；时间轴可复用同一套画面（注意文本长度差异）。
 - **多画幅**：同一 `script.json` 用不同 `project.format` 重新 init/render；布局由 `layout()` 适配。
 - **品牌**：`project.json.brand` 提供 logo 文字/颜色/页脚；默认关闭。
@@ -249,4 +260,5 @@ QA 必须全部通过（见 `references/qa.md`）：
 - `references/styles.md`：5 套风格的色板/字体/动效/适用题材。
 - `references/formats.md`：画幅、安全区、竖屏重排规则。
 - `references/audio.md`：TTS 选项、真人录音、配乐合成、ducking、响度、单次编码。
+- `references/local-tts.md`：VoxCPM2 本地 48 kHz 安装、参考音色克隆、中文技术名词改写、OOM/下载排错。
 - `references/qa.md`：验收清单与自动检查命令。

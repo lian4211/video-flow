@@ -28,6 +28,22 @@
 }
 ```
 
+**本地 48 kHz 旁白**（可选，不改变 timeline 契约）：
+
+```json
+"voice": {
+  "engine": "voxcpm",
+  "model_dir": "models/VoxCPM2",
+  "ref_audio": "audio/voice_ref.wav",
+  "ref_text": "",
+  "control": "",
+  "atempo": 0.95,
+  "device": "cuda"
+}
+```
+
+`tts.py` 读取 `voice.engine` 决定引擎；`voxcpm` 路径输出同样是 `audio/vo/<id>.wav`（48 kHz 单声道），后续步骤不变。安装/参考音色/排错见 `references/local-tts.md`。
+
 ### script.json
 ```json
 {

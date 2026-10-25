@@ -20,6 +20,9 @@ MODULES = [
     ("docx", False, "DOCX 抽取"),
     ("requests", False, "URL 抽取"),
     ("edge_tts", False, "在线神经语音"),
+    ("torch", False, "本地 TTS 运行时（可选）"),
+    ("voxcpm", False, "本地 48 kHz VoxCPM2（可选）"),
+    ("soundfile", False, "本地 TTS 写 WAV（可选）"),
 ]
 
 CHROME_CANDIDATES = {
@@ -110,10 +113,28 @@ def main():
     if not cp:
         print("  install Google Chrome or Chromium")
 
+    print("\n[Local TTS: VoxCPM2 (optional)]")
+    if has("torch"):
+        try:
+            import torch
+            cuda = torch.cuda.is_available()
+            print(f"  [{'OK ' if cuda else 'warn'}] torch {torch.__version__}  CUDA={cuda}")
+            if not cuda:
+                print("         install a CUDA wheel, e.g. torch==2.11.0+cu128 from pytorch.org")
+        except Exception as e:
+            print(f"  [warn] torch import failed: {e}")
+    else:
+        print("  [info] torch not installed; local TTS disabled")
+    if has("voxcpm"):
+        print("  [OK ] voxcpm installed; set voice.engine=voxcpm in project.json")
+    else:
+        print("  [info] voxcpm not installed; see references/local-tts.md")
+
     print("\n[Notes]")
     print("  - If Chrome cannot start due to sandbox IPC restrictions, run render.py in an")
     print("    environment that allows Chrome, or start Chrome yourself and pass --cdp.")
-    print("  - edge-tts needs network; without it use --engine sapi or human recordings.")
+    print("  - edge-tts needs network; without it use --engine sapi, --from-dir, or --engine voxcpm.")
+    print("  - VoxCPM2 is optional: CUDA PyTorch + 4.7 GB weights; see references/local-tts.md.")
     print("\n" + ("READY" if ok else "NOT READY"))
     return 0 if ok else 1
 
