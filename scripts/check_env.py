@@ -93,6 +93,9 @@ def main():
         if required and not p:
             ok = False
 
+    node = which("node")
+    print(f"  [{'OK ' if node else 'warn'}] node     {node or 'optional: needed for MathJax SVG build'}")
+
     cp = chrome_path()
     print(f"  [{'OK ' if cp else 'MISS'}] chrome   {cp or 'install Chrome/Chromium/Edge'}")
 
@@ -112,6 +115,8 @@ def main():
         print("  install FFmpeg and add it to PATH")
     if not cp:
         print("  install Google Chrome or Chromium")
+    if not node:
+        print("  install Node.js 18+ only if you need LaTeX formulas (mathjax-full@3)")
 
     print("\n[Local TTS: VoxCPM2 (optional)]")
     if has("torch"):

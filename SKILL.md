@@ -3,7 +3,7 @@ name: video-flow
 description: >-
   把任意内容（PDF / PPT / DOCX / Markdown / 网页 / 视频 / 一个主题）制作成“代码渲染”的可视化讲解视频：
   先做教学结构，再写分镜与旁白，然后用 Canvas/HTML 的 render(t) 画每一帧，headless Chrome 逐帧截图，
-  FFmpeg 编码，可选 TTS 旁白、合成配乐、软字幕、质检报告。
+  FFmpeg 编码，可选 TTS 旁白、合成配乐、软/硬字幕、全量 LaTeX 公式、阶段进度条、质检报告。
   支持 16:9 / 9:16 / 1:1 / 4:5，内置 5 套视觉风格与 8 类通用镜头，也支持自定义镜头与品牌。
   当用户说“把这个 PDF/PPT/文章做成讲解视频”“做一个科普/产品/教程短片”“可视化教学”“代码做视频”
   “explainer video”“video as code”时使用。
@@ -45,6 +45,9 @@ description: >-
 5. **默认不带任何品牌/水印**：除非用户提供 logo/品牌名；默认页脚只写课程/主题信息。
 6. **一次编码**：音频在 WAV 阶段完成混音与响度，最终只做一次 AAC 编码；不要反复转码。
 7. **交付前必须过 QA**：抽帧、黑帧、响度、时长、字幕、音画同步，见第 8 步。
+8. **公式不手写 parser**：多公式视频用 MathJax 在构建期渲染成 SVG，`_tex`/`$...$` 为唯一来源；不要用 Unicode 上下标拼公式。
+9. **竖屏不是裁剪**：9:16 必须重排版；底部预留字幕安全区 + 阶段进度条；不要从 16:9 等比缩小。
+10. **声音只用一个音色**：全片固定同一参考音色与 `ref_text`；段间 f0 漂移超过约 20 Hz 就是“换人了”，必须重配。
 
 ---
 
@@ -68,10 +71,11 @@ description: >-
   storyboard.md         # 分镜表：每镜讲什么、画面、时长、旁白、考点
   script.json           # 机器可读：scenes[]（type/文案/视觉/vo/时长）
   build/                # index.html + lib.js + theme.js + scenes.js + timeline.js
+                        # 可选：math_svgs.js（MathJax SVG）、rich.js（公式/混排 helper）
   audio/                # vo/*.wav、bgm、mix.wav
   frames/               # 逐帧 JPEG
-  out/                  # final.mp4 / final.srt / poster.png
-  qa/                   # report.md + contact sheets + 抽帧
+  out/                  # final.mp4 / final.srt / final.ass / poster.png
+  qa/                   # report.md + contact sheets + 抽帧 + 渲染日志
 ```
 用 `scripts/init_project.py` 一次生成骨架。
 
@@ -134,12 +138,15 @@ python scripts/tts.py --project . --voice zh-CN-XiaoxiaoNeural --rate +3%
 python scripts/tts.py --project . --engine voxcpm \
   --model-dir models/VoxCPM2 \
   --ref-audio audio/voice_ref.wav \
-  --atempo 0.95
+  --ref-text "参考音频的逐字文本" \
+  --atempo 0.91
 
 python scripts/timeline.py --project .
 ```
 - `tts.py` 输出 `audio/vo/<id>.wav`（48 kHz），自动做轻 EQ/压缩；支持 `--from-dir` 用真人录音、`--engine voxcpm` 用本地 48 kHz 模型。
-- VoxCPM2 需要单独装 CUDA 版 PyTorch 与 4.7 GB 权重；完整步骤、参考音色、OOM 处理见 `references/local-tts.md`。
+- VoxCPM2 要稳定音色，必须 **reference + prompt_text 同时给**（both 模式）；只给 `ref_audio` 会让段间 f0 漂移。参考音与 `ref_text` 必须逐字一致；完整步骤见 `references/local-tts.md`。
+- 全片固定同一 `ref_audio`/`ref_text`/`atempo`；不要逐段换声线。生成后先抽查 3 段 f0，再全量。
+- 旁白连读明显时，在句间静音处补 0.10–0.20 s 呼吸，不要用整体降速代替。
 - **专有名词口播规则**：屏幕保留 `ALU/CF/OF` 缩写，旁白写“算术逻辑单元/进位标志/溢出标志”；不要写 `A L U`（字母间会有停顿）；`74181` 写成“七四一八一”。
 - `timeline.py` 用实测旁白时长生成 `build/timeline.js` 与 `timeline.json`：
   `scene.duration = head + voDuration + tail`，没有旁白的镜头用显式 `duration`。
@@ -158,6 +165,7 @@ python scripts/init_project.py --dir my-video --title "..." --format 16:9 --styl
   ```
   在 `script.json` 里把该镜 `type` 设为 `custom`。
 - 每次只做一个镜头：先渲 3 张静帧（`scripts/render.py --still 1.2,2.4,3.6`），检查文字溢出/重叠/主体大小，再继续。
+- **公式多时**：不要手写上下标 parser；给字段加 `*_tex`，行内用 `$...$`，用 `scripts/build_math_svgs.js` 生成 `build/math_svgs.js`，再用 `drawTex/drawRich` 绘制。详见 `references/latex-math.md`。
 
 ### 第 6 步：渲染
 ```bash
@@ -165,24 +173,39 @@ python scripts/render.py --project . --fps 30
 # 只渲某段：--start 8 --duration 4
 # 复用已有 Chrome：--cdp http://127.0.0.1:9333
 # 让脚本自己起 Chrome：--launch-chrome
+
+# 长片并行：按 timeline.total 切 N 段，每段独立 Chrome
+python scripts/render_parallel.py --project . --chunks 4 --launch-chrome
 ```
 输出 `frames/f00000.jpg...`，可断点续渲（已存在且 >2KB 的帧跳过）。
+- 1080p 单进程约 9–15 fps；4 进程约 3–4 倍吞吐。66,450 帧实测约 30 分钟，日志在 `qa/render_part*.log`。
+- 详见 `references/parallel-render.md`。
 > 无头 Chrome 与 sandbox：如果运行环境禁止 Chrome 的 IPC/管道，需在允许的环境运行，或用 `--cdp` 连接一个已启动的 Chrome。
 
 ### 第 7 步：配乐、音效、混音、字幕
 ```bash
 python scripts/audio.py --project .            # 合成 BGM + 放旁白 + duck + 母带
 python scripts/srt.py --project .              # 生成 out/final.srt
+
+# 需要硬字幕（手机/平台转码会关掉软字幕时）：
+python scripts/make_ass.py --project . \
+  --srt out/final.srt --out out/final.ass \
+  --width 1080 --height 1920 --font-size 42 --margin-v 250
 ```
 - 没有旁白：`audio.py --no-bgm` 或只用用户提供的音乐。
 - 用户提供音乐：放到 `audio/music.*`，`audio.py` 会自动循环/裁切并 duck。
 - 目标响度默认 −14.2 LUFS、真峰值 ≤ −1.5 dBFS；音频只编码一次。
+- 硬字幕与烧录：`encode.py --ass out/final.ass`；ASS 的 `PlayRes` 必须等于画布尺寸，否则字号/边距全错。
 
 ### 第 8 步：编码 + QA + 交付
 ```bash
 python scripts/encode.py --project .           # frames+mix+srt → out/final.mp4
+python scripts/encode.py --project . --ass out/final.ass   # 硬字幕（不要再内封 SRT）
 python scripts/qa.py --project .               # qa/report.md + 抽帧拼图
 ```
+- 编码前核对帧数：`round(timeline.total * fps)`；少帧会闪黑/提前结束，多帧会拖尾。
+- 硬字幕烧录会多一层滤镜，36 分钟 1080p 约多 1–2 分钟；字幕位置按 `references/mobile-video.md` 的安全区调。
+- `qa.py` 只检查软字幕流；硬字幕要额外抽 3–5 帧看底部，不要被 QA PASS 骗了。
 QA 必须全部通过（见 `references/qa.md`）：
 - 时长/画幅/帧率/音轨/字幕流正确；
 - 无 ≥0.25 s 黑帧；抽帧无空白、无叠字、无溢出；
@@ -217,11 +240,11 @@ QA 必须全部通过（见 `references/qa.md`）：
 | 画幅 | 尺寸 | 安全区 | 标题字号 | 正文字号 |
 |---|---|---|---|---|
 | 16:9 | 1920×1080 | 左右 96 / 上下 64 | 72–120 | 28–40 |
-| 9:16 | 1080×1920 | 左右 64 / 上下 160 | 64–96 | 32–44 |
+| 9:16 | 1080×1920 | 左右 54 / 上下 120；底部字幕区 1560–1730、进度条 1738–1888 | 52–72 | 28–36 |
 | 1:1 | 1080×1080 | 四周 72 | 56–88 | 28–40 |
 | 4:5 | 1080×1350 | 四周 80 | 60–92 | 30–42 |
 
-竖屏要重排：标题在上、图在中、结论在下；不要横向压缩。模板用 `layout()` 根据画幅切换，参考 `references/formats.md`。
+竖屏要重排：标题在上、图在中、结论在下；不要横向压缩。简单模板可用 `layout()` 切换，复杂讲解片建议复制工程、单独写竖屏 `app.js`，参考 `references/formats.md` 与 `references/mobile-video.md`。
 
 ---
 
@@ -235,8 +258,14 @@ QA 必须全部通过（见 `references/qa.md`）：
 | 文字重叠/溢出 | 没有逐镜静帧检查 | 每镜 3 张静帧 + 竖屏 360px 宽抽帧 |
 | 音画不同步 | 音频从 0 开始 vs 视频从 start；TTS 逐句拼 | 同一 timeline；整段 TTS；`-ss` 放 `-i` 前 |
 | 响度忽大忽小 | 多次 loudnorm/转码 | 只在 WAV 阶段静态增益；一次 AAC |
-| 渲染太慢 | 4K/子帧/笔刷/WebGL | 先 960×540 小样；子帧只给快动作；并行 worker |
+| 渲染太慢 | 4K/子帧/笔刷/WebGL | 先 960×540 小样；子帧只给快动作；`render_parallel.py --chunks 4–6` |
 | Chrome 起不来 | sandbox 限制 IPC/管道 | 在允许环境运行，或 `--cdp` 连已启动 Chrome |
+| 公式上标错位 | 手写 parser 只取 `^` 后一个字符 | 改 MathJax SVG；或 `^(` 匹配到对应 `)` |
+| 行内公式太小/悬浮 | 高度系数偏小 | 改 1.6–1.8；`top = y - h*0.72` |
+| 竖屏字太小 | 从 16:9 等比缩 | 1080×1920 原生重排，正文 ≥28 px |
+| 进度条显示 `NaN` | `SCENES` 项没有 `chapter` | 从 `CONTENT.scenes` 按当前 `id` 取 |
+| 段间像换人 | 每段换参考/只给 ref_audio | 全片同一 `ref_audio + ref_text`；查 median f0 |
+| 硬字幕压内容 | ASS PlayRes/MarginV 不对 | `PlayRes` 等于画布；字幕底边留 16 px，不压答案卡 |
 
 ---
 
@@ -247,7 +276,7 @@ QA 必须全部通过（见 `references/qa.md`）：
 - **真人配音**：把录音按 `<scene-id>.wav` 放进 `audio/vo_human/`，`tts.py --from-dir` 只做重采样/轻处理。
 - **本地 48 kHz TTS**：`tts.py --engine voxcpm` + 参考音色克隆；安装/调参/排错见 `references/local-tts.md`。
 - **多语言**：一个 `script.<lang>.json` + 对应 TTS 声线；时间轴可复用同一套画面（注意文本长度差异）。
-- **多画幅**：同一 `script.json` 用不同 `project.format` 重新 init/render；布局由 `layout()` 适配。
+- **多画幅**：同一 `script.json` 用不同 `project.format` 重新 init/render；简单模板由 `layout()` 适配，复杂讲解片复制工程重写竖屏/横屏布局。
 - **品牌**：`project.json.brand` 提供 logo 文字/颜色/页脚；默认关闭。
 
 ---
@@ -260,5 +289,8 @@ QA 必须全部通过（见 `references/qa.md`）：
 - `references/styles.md`：5 套风格的色板/字体/动效/适用题材。
 - `references/formats.md`：画幅、安全区、竖屏重排规则。
 - `references/audio.md`：TTS 选项、真人录音、配乐合成、ducking、响度、单次编码。
-- `references/local-tts.md`：VoxCPM2 本地 48 kHz 安装、参考音色克隆、中文技术名词改写、OOM/下载排错。
+- `references/local-tts.md`：VoxCPM2 本地 48 kHz 安装、参考音色克隆、both 模式、中文技术名词改写、OOM/下载排错。
+- `references/latex-math.md`：MathJax SVG 构建、`_tex`/`$...$` 契约、`drawTex/drawRich`、错位排查。
+- `references/mobile-video.md`：9:16 大字布局、安全区、硬字幕、10 段阶段进度条、横竖屏互转。
+- `references/parallel-render.md`：并行渲染切分、增量重渲、编码瓶颈。
 - `references/qa.md`：验收清单与自动检查命令。

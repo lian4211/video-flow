@@ -127,17 +127,18 @@ python -c "from voxcpm import VoxCPM; m=VoxCPM.from_pretrained('models/VoxCPM2',
     "engine": "voxcpm",
     "model_dir": "models/VoxCPM2",
     "ref_audio": "audio/voice_ref.wav",
-    "ref_text": "",
+    "ref_text": "参考音频的逐字文本",
     "control": "",
-    "atempo": 0.95,
+    "atempo": 0.91,
     "device": "cuda"
   }
 }
 ```
 
-- `ref_text` 留空时，`tts.py` 会读取 `audio/voice_ref.txt`；
+- **`ref_text` 必须填**（或放 `audio/voice_ref.txt`）。只给 `ref_audio` 时克隆会不稳定：实测 59 段 median f0 在 102.5–231.2 Hz 漂移，听感像多人轮读；加上 `ref_text` 后 both 模式稳定在约 120–157 Hz。
 - 没有参考音频时，可只用 `control` 做 Voice Design（音色一致性弱一些）；
-- `atempo: 0.95` = 放慢 5%，不改音高，教学片更稳。
+- `atempo: 0.91` = 放慢 9%，不改音高；教学片比 0.95 更稳。不要低于 0.88，辅音会拖。
+- 参考音与 `ref_text` 必须逐字一致；不一致会让模型“边猜边克隆”，音色/节奏更飘。
 
 ### 3.3 生成
 
@@ -150,7 +151,7 @@ python scripts/tts.py --project . --engine voxcpm \
   --model-dir models/VoxCPM2 \
   --ref-audio audio/voice_ref.wav \
   --ref-text "参考音频的逐字文本" \
-  --atempo 0.95
+  --atempo 0.91
 
 # 没有参考音频：纯 Voice Design
 python scripts/tts.py --project . --engine voxcpm \
@@ -199,7 +200,7 @@ python scripts/tts.py --project . --engine voxcpm \
 
 ```text
 48 kHz 单声道
-→ atempo 0.95（可选，不改音高）
+→ atempo 0.91（可选，不改音高）
 → highpass 60 Hz
 → EQ: 180 Hz +0.8 dB, 3.2 kHz +0.6 dB
 → 轻压缩: -20 dB / 1.4 / 8 ms / 150 ms

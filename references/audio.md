@@ -17,14 +17,40 @@
 
 ```bash
 # 1) 参考音色：10–30 s 干净人声；transcript 放 audio/voice_ref.txt
-# 2) project.json 的 voice.engine 设为 voxcpm
-python scripts/tts.py --project . --engine voxcpm --model-dir models/VoxCPM2 --atempo 0.95
+# 2) project.json 的 voice.engine 设为 voxcpm，ref_text 填逐字文本
+python scripts/tts.py --project . --engine voxcpm --model-dir models/VoxCPM2 --atempo 0.91
 ```
 
-- 全片固定同一 `ref_audio`，避免段间音色漂移；
+- **必须 both 模式**：`ref_audio` + `ref_text` 同时给。只给 `ref_audio` 时克隆相似度低，段间 median f0 可从 130 Hz 漂到 230 Hz，听感像换人。
+- 全片固定同一 `ref_audio`/`ref_text`/`atempo`，不要逐段换声线；
 - 口播把 `ALU/CPU/CF/OF` 改成中文全称，屏幕保留缩写；
 - 数字写成中文读法（74181 → 七四一八一）；
-- 生成后先听 1 段，再批量。
+- 生成后先抽查 3 段 f0（中位数），再批量。
+
+### 1.2 音色一致性自检
+
+```bash
+python - <<'PY'
+import numpy as np, soundfile as sf, glob
+for p in sorted(glob.glob("audio/vo/*.wav"))[:5]:
+    x, sr = sf.read(p)
+    x = x[:,0] if x.ndim>1 else x
+    # 简易自相关 f0（只用于相对比较）
+    x = x - x.mean()
+    ac = np.correlate(x, x, "full")[len(x)-1:]
+    lo, hi = sr//400, sr//70
+    print(p, sr, round(sr/(lo+np.argmax(ac[lo:hi])),1), "Hz")
+PY
+```
+
+段间中位数差 >20 Hz 就要查参考音/文本是否一致。
+
+### 1.3 停顿：不要一直连读
+
+- 句号/问号后至少 0.25–0.40 s；逗号 0.12–0.20 s；
+- VoxCPM2 本身可能连读，可在音频静音段补 0.10–0.18 s；
+- 不要用整体 `atempo 0.85` 代替停顿：会拖慢所有字，反而不自然；
+- 每个场景的 `vo` 保持 1–2 句，长句拆场景；这比后期硬插静音更自然。
 
 ## 2. TTS 参数
 
@@ -51,7 +77,7 @@ python scripts/tts.py --project . --engine voxcpm --model-dir models/VoxCPM2 --a
 
 ```text
 48 kHz 单声道
-→ atempo 0.95（可选，不改音高）
+→ atempo 0.91（可选，不改音高）
 → highpass 60 Hz
 → EQ: 180 Hz +0.8 dB, 3.2 kHz +0.6 dB
 → 轻压缩: -20 dB, ratio 1.4, 8 ms / 150 ms

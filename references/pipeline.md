@@ -35,14 +35,14 @@
   "engine": "voxcpm",
   "model_dir": "models/VoxCPM2",
   "ref_audio": "audio/voice_ref.wav",
-  "ref_text": "",
+  "ref_text": "参考音频的逐字文本",
   "control": "",
-  "atempo": 0.95,
+  "atempo": 0.91,
   "device": "cuda"
 }
 ```
 
-`tts.py` 读取 `voice.engine` 决定引擎；`voxcpm` 路径输出同样是 `audio/vo/<id>.wav`（48 kHz 单声道），后续步骤不变。安装/参考音色/排错见 `references/local-tts.md`。
+`tts.py` 读取 `voice.engine` 决定引擎；`voxcpm` 路径输出同样是 `audio/vo/<id>.wav`（48 kHz 单声道），后续步骤不变。**`ref_text` 必须给**：只给 `ref_audio` 会退化为弱克隆，段间 f0 漂移；`ref_text` 为空时脚本会尝试 `audio/voice_ref.txt`，再没有就警告。安装/参考音色/排错见 `references/local-tts.md`。
 
 ### script.json
 ```json
@@ -140,6 +140,20 @@ function render(t){
 }
 ```
 
+### 3.1 公式（可选）：MathJax SVG
+
+公式多时，不要手写上下标 parser：
+
+```bash
+npm install mathjax-full@3
+node scripts/build_math_svgs.js --project .
+```
+
+- `script.json` 的展示字段加 `*_tex`，行内公式用 `$...$`；
+- 构建期生成 `build/math_svgs.js`，页面直接 `drawImage`；
+- `content.js` 要重跑 `timeline.py` 才会带上新字段；
+- 完整契约/坑见 `references/latex-math.md`。
+
 **三条禁令**（再强调一次）：不读系统时间、不用无种子随机、不在帧之间保存状态。需要随机用 `hash(seed)`，需要弹簧用闭式解：
 
 ```js
@@ -171,6 +185,14 @@ function spring(x, w=16, z=0.72){
 
 可选运动模糊：`--motion-blur 4` 在 1/4 帧间隔采样 4 次并在内存平均；只对快速运动镜头使用，成本 ×4。
 
+长片并行：
+
+```bash
+python scripts/render_parallel.py --project . --chunks 4 --launch-chrome
+```
+
+按 `timeline.total` 切成 4 段，每段独立 Chrome，日志 `qa/render_part*.log`；1080p 单进程约 9–15 fps，4 进程约 3–4 倍吞吐。详见 `references/parallel-render.md`。
+
 ---
 
 ## 5. 编码
@@ -190,6 +212,15 @@ ffmpeg -y -i out/final.mp4 -i out/final.srt \
   -map 0 -map 1 -c copy -c:s mov_text -metadata:s:s:0 language=zho \
   -movflags +faststart out/final_subbed.mp4
 ```
+
+要硬字幕（手机平台/网页播放器不会关掉）：
+```bash
+python scripts/make_ass.py --project . --srt out/final.srt --out out/final.ass \
+  --width 1920 --height 1080 --font-size 42 --margin-v 64
+python scripts/encode.py --project . --ass out/final.ass
+```
+
+ASS 的 `PlayResX/Y` 必须等于画布；否则字号/边距按错误比例缩放。Windows 下 `encode.py` 用项目内相对路径喂 `-vf ass=...`，避免盘符冒号转义。
 
 参数经验：
 - `crf 18`（文字/线条多，别用 23）；

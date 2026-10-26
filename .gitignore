@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 **/frames/
 **/models/
+**/node_modules/
 .venv*/
 **/audio/voice_ref.wav
 **/audio/voice_ref.txt

@@ -1,7 +1,7 @@
 # video-flow
 
 > 把任意内容（PDF / PPT / DOCX / Markdown / 网页 / 视频 / 一个主题）制作成“代码渲染”的可视化讲解视频。
-> `render(t)` → headless Chrome 逐帧截图 → FFmpeg + 可选 TTS / 配乐 / 字幕 / 质检。
+> `render(t)` → headless Chrome 逐帧截图 → FFmpeg + 可选 TTS / 配乐 / 软硬字幕 / LaTeX 公式 / 阶段进度条 / 质检。
 
 这是一个 **Claude Code / Codex / Cursor 等编码 Agent 可执行的 Skill**，也是一套可独立运行的 Python 工具链。
 它把“做一条讲解视频”拆成 8 个可检查的阶段，并给出每个阶段的产物、脚本和验收标准。
@@ -49,16 +49,22 @@ python scripts/init_project.py --dir my-video --title "我的讲解视频" --for
 python scripts/tts.py --project my-video
 python scripts/timeline.py --project my-video
 
-# 4b) 要 48 kHz / 商业配音感：本地 VoxCPM2（需先装 CUDA 版 PyTorch 与 4.7 GB 权重）
-#     python scripts/tts.py --project my-video --engine voxcpm --model-dir models/VoxCPM2 --atempo 0.95
+# 4b) 要 48 kHz / 商业配音感：本地 VoxCPM2（需 CUDA 版 PyTorch + 4.7 GB 权重）
+#     project.json 里必须同时给 ref_audio 和 ref_text（逐字文本）
+#     python scripts/tts.py --project my-video --engine voxcpm --model-dir models/VoxCPM2 --atempo 0.91
 
 # 5) 逐帧渲染（自动启动 Chrome，或 --cdp 连已有实例）
 python scripts/render.py --project my-video --launch-chrome
+# 长片并行（1080p 约 3–4 倍吞吐）
+python scripts/render_parallel.py --project my-video --chunks 4 --launch-chrome
 
 # 6) 音频、字幕、编码、质检
 python scripts/audio.py --project my-video
 python scripts/srt.py --project my-video
-python scripts/encode.py --project my-video
+# 需要硬字幕时：先生成 ASS，再烧录
+python scripts/make_ass.py --project my-video --srt out/final.srt \
+  --out out/final.ass --width 1920 --height 1080 --font-size 42
+python scripts/encode.py --project my-video --ass out/final.ass
 python scripts/qa.py --project my-video
 ```
 
@@ -90,7 +96,10 @@ video-flow/
 │   ├── styles.md             # 5 套视觉风格
 │   ├── formats.md            # 16:9 / 9:16 / 1:1 / 4:5 与安全区
 │   ├── audio.md              # TTS/真人录音、配乐、ducking、响度
-│   ├── local-tts.md          # VoxCPM2 本地 48 kHz：安装/克隆/中文名词/排错
+│   ├── local-tts.md          # VoxCPM2 本地 48 kHz：安装/克隆/both 模式/中文名词/排错
+│   ├── latex-math.md         # MathJax SVG、_tex/$...$ 契约、drawTex/drawRich
+│   ├── mobile-video.md       # 9:16 大字布局、硬字幕、阶段进度条、横竖屏互转
+│   ├── parallel-render.md    # 并行切分、增量重渲、编码瓶颈
 │   └── qa.md                 # 验收清单与自动检查
 ├── scripts/
 │   ├── check_env.py          # 环境检查
@@ -99,14 +108,17 @@ video-flow/
 │   ├── tts.py                # edge / sapi / 真人录音 / VoxCPM2 本地
 │   ├── timeline.py           # 分镜 + 旁白 → timeline.js/json
 │   ├── render.py             # CDP 逐帧渲染（可续渲/静帧/运动模糊）
+│   ├── render_parallel.py    # 按 timeline 切 N 段并行渲染
+│   ├── build_math_svgs.js    # MathJax → SVG data URI（需 mathjax-full）
 │   ├── audio.py              # BGM/SFX/混音/ducking/母带
 │   ├── srt.py                # 字幕
-│   ├── encode.py             # 一次 H.264/AAC 编码 + 软字幕
+│   ├── make_ass.py           # SRT → 可烧录 ASS（字体/字号/边距）
+│   ├── encode.py             # 一次 H.264/AAC 编码 + 软/硬字幕
 │   ├── qa.py                 # 黑帧/响度/流信息/抽帧报告
 │   ├── run_pipeline.py       # 顺序跑全流程
 │   └── pdf_to_png.ps1        # Windows 无 pymupdf 时的 PDF 栅格化
 ├── templates/
-│   ├── build/                # index.html + lib.js + scenes.js + custom.js
+│   ├── build/                # index.html + lib.js + scenes.js + custom.js + rich.js
 │   ├── styles/               # silicon / paper / blueprint / neon / swiss
 │   └── script.example.json   # 示例分镜
 ├── models/                   # 可选：VoxCPM2 权重（.gitignore，不随仓库分发）
@@ -133,6 +145,7 @@ video-flow/
 - Chrome / Chromium / Edge
 - （可选）`edge-tts`，用于中文神经语音；无网络可用 `--engine sapi` 或真人录音
 - （可选）**VoxCPM2 本地 48 kHz**：CUDA 版 PyTorch + `voxcpm` + 4.7 GB 权重，8 GB 显存；安装见 `references/local-tts.md`
+- （可选）**公式**：Node 18+ + `mathjax-full@3`（构建期用，不进最终页面）；见 `references/latex-math.md`
 
 已在 Windows 11 + Chrome 155 + Python 3.12 + FFmpeg 8.1 上跑通。
 > Chrome 在受限 sandbox 中可能因 IPC/管道被禁止而无法启动；此时在允许的环境运行，或用 `--cdp` 连接一个已启动的 Chrome。
@@ -146,7 +159,9 @@ video-flow/
 - **真人配音**：录音按 `<scene-id>.wav` 放 `audio/vo_human/`，`tts.py --engine from-dir` 只做重采样/轻处理。
 - **本地 48 kHz 配音**：`tts.py --engine voxcpm` + 10–30 s 参考音色克隆；安装/调参/排错见 `references/local-tts.md`。
 - **多语言**：`script.<lang>.json` + 对应声线；时间轴自动重算。
-- **多画幅**：改 `project.format` 重新 init/render；布局由 `layout()` 适配。
+- **多画幅**：简单模板可改 `project.format` 由 `layout()` 适配；复杂讲解片建议复制工程单独写竖屏/横屏布局（见 `references/mobile-video.md`）。
+- **公式**：`_tex` + `$...$` + `build_math_svgs.js`；不要手写上下标 parser（见 `references/latex-math.md`）。
+- **硬字幕**：`make_ass.py` + `encode.py --ass`，适合手机平台（见 `references/mobile-video.md`）。
 
 ---
 
